@@ -4,21 +4,33 @@
         xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
         xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
 
-    <!-- Sample Thing Type -->
-    <thing-type id="sample">
-        <label>AntiferenceMatrix Binding Thing</label>
-        <description>Sample thing for AntiferenceMatrix Binding</description>
+    <bridge-type id="bridge">
+        <label>Antiference Matrix</label>
+        <description>The Antiference Matrix.</description>
+        <config-description>
+            <parameter name="ipAddress" type="text" required="true">
+                <label>IP Adress</label>
+                <description>The IP address of the matrix.</description>
+            </parameter>
+        </config-description>
+    </bridge-type>
 
+
+
+    <thing-type id="output">
+        <label>Matrix Output</label>
+        <description>Antiference Matrix Output - essentially a TV</description>
         <channels>
-            <channel id="channel1" typeId="sample-channel"/>
+            <channel id="power" typeId="switch"/>
+            <channel id="source" typeId="source-channel"/>
         </channels>
     </thing-type>
 
-    <!-- Sample Channel Type -->
-    <channel-type id="sample-channel">
-        <item-type>antiferencematrixItem</item-type>
-        <label>AntiferenceMatrix Binding Channel</label>
-        <description>Sample channel for AntiferenceMatrix Binding</description>
+    <channel-type id="source-channel">
+        <item-type>Number</item-type>
+        <label>Source</label>
+        <description>Input source for this output</description>
+        <state min="0" max="3" step="1" pattern="%.1f" readOnly="false"></state>
     </channel-type>
 
 </thing:thing-descriptions>
