@@ -4,19 +4,6 @@
         xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
         xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
 
-    <bridge-type id="bridge">
-        <label>Antiference Matrix</label>
-        <description>The Antiference Matrix.</description>
-        <config-description>
-            <parameter name="ipAddress" type="text" required="true">
-                <label>IP Adress</label>
-                <description>The IP address of the matrix.</description>
-            </parameter>
-        </config-description>
-    </bridge-type>
-
-
-
     <thing-type id="output">
         <label>Matrix Output</label>
         <description>Antiference Matrix Output - essentially a TV</description>

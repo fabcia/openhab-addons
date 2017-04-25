@@ -7,8 +7,11 @@
  */
 package org.openhab.binding.antiferencematrix.handler;
 
-import static org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants.CHANNEL_1;
+import static org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants.*;
 
+import org.eclipse.smarthome.core.library.types.DecimalType;
+import org.eclipse.smarthome.core.library.types.OnOffType;
+import org.eclipse.smarthome.core.thing.Channel;
 import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
@@ -33,14 +36,26 @@ public class AntiferenceMatrixHandler extends BaseThingHandler {
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        if (channelUID.getId().equals(CHANNEL_1)) {
-            // TODO: handle command
-
-            // Note: if communication with thing fails for some reason,
-            // indicate that by setting the status with detail information
-            // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-            // "Could not control device at IP address x.x.x.x");
+        if (channelUID.getId().equals(POWER_CHANNEL) && command instanceof OnOffType) {
+            AntiferenceMatrixBridgeHandler bridge = (AntiferenceMatrixBridgeHandler) getBridge().getHandler();
+            int outputId = 0;
+            bridge.changePower(outputId, (OnOffType) command);
         }
+        if (channelUID.getId().equals(SOURCE_CHANNEL) && command instanceof DecimalType) {
+            AntiferenceMatrixBridgeHandler bridge = (AntiferenceMatrixBridgeHandler) getBridge().getHandler();
+            int outputId = 0;
+            bridge.changeSource(outputId, (DecimalType) command);
+
+        }
+        Thing thing = getThing();
+        Channel channel = getThing().getChannel(POWER_CHANNEL);
+
+        // TODO: handle command
+
+        // Note: if communication with thing fails for some reason,
+        // indicate that by setting the status with detail information
+        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+        // "Could not control device at IP address x.x.x.x");
     }
 
     @Override
