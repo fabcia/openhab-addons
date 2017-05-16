@@ -106,8 +106,27 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
         return null;
     }
 
-    @Override
-    public void handleCommand(ChannelUID channelUID, Command command) {
+
+ @Override
+
+    public void handleCommand(ChannelUID channelUID, Command command) {
+        if (command instanceof RefreshType) {
+            handleRefreshCommand(channelUID, (RefreshCommand) command);
+        }
+
+        // TODO Handle other commands
+
+
+    }
+
+    protected void handleRefreshCommand(ChannelUID channelUID, RefreshCommand command) {
+        MatrixData data = updateMatrixData();
+        updateState(new ChannelUID(getThing().getUID(), CHANNEL_POWER), data.getPower());
+    
+    
+    }
+    
+    voidvoid handleCommand(ChannelUID channelUID, Command command) {
         // TODO Auto-generated method stub
 
     }
