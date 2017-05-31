@@ -34,6 +34,10 @@ public class ApiAccess {
         ApiAccess.authenticationData = authentication;
     }
 
+    public Authentication  getAuthentication() {
+        return ApiAccess.authenticationData;
+    }
+
     public void setApplicationId(String applicationId) {
         ApiAccess.applicationId = applicationId;
     }
@@ -68,6 +72,10 @@ public class ApiAccess {
                     out = (TOut) new Gson().fromJson(reply, out.getClass());
                 }
             }
+            else
+            {
+                out = null;
+            }
         } catch (InterruptedException | TimeoutException | ExecutionException e) {
             logger.error("Error in handling request", e);
         } catch (Exception e) {
@@ -81,8 +89,6 @@ public class ApiAccess {
     public <TIn, TOut> TOut doRequest(HttpMethod method, String url, Map<String, String> headers, TIn requestContainer,
             TOut out) {
 
-        logger.debug("JSON request");
-
         String json = null;
         if (requestContainer != null) {
             Gson gson = new GsonBuilder().create();
@@ -94,8 +100,6 @@ public class ApiAccess {
 
     public <TIn, TOut> TOut doAuthenticatedRequest(HttpMethod method, String url, Map<String, String> headers,
             TIn requestContainer, TOut out) {
-
-        logger.debug("AUTH request");
 
         if (authenticationData != null) {
             if (headers == null) {

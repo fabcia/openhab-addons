@@ -19,4 +19,7 @@ public class Authentication {
     @SerializedName("scope")
     public String scope;
 
+    /** Convenience variable for current system time in seconds */
+    public long systemTime;
+
 }

@@ -20,7 +20,6 @@ import org.openhab.binding.evohome.EvohomeBindingConstants;
 import org.openhab.binding.evohome.handler.EvohomeGatewayHandler;
 import org.openhab.binding.evohome.internal.api.EvohomeApiClient;
 import org.openhab.binding.evohome.internal.api.models.ControlSystem;
-import org.openhab.binding.evohome.internal.api.models.v1.Weather;
 import org.openhab.binding.evohome.internal.api.models.v2.response.HeatSetpointCapabilities;
 import org.openhab.binding.evohome.internal.api.models.v2.response.ScheduleCapabilities;
 import org.openhab.binding.evohome.internal.api.models.v2.response.TemperatureControlSystem;
@@ -52,15 +51,10 @@ public class EvohomeDiscoveryService extends AbstractDiscoveryService {
             try {
                 EvohomeApiClient client = evohomeGatewayHandler.getApiClient();
                 if (client != null) {
-
                     for (ControlSystem controlSystem : client.getControlSystems()) {
                         discoverDisplay(controlSystem);
                         discoverHeatingZones(controlSystem.getId(), controlSystem.getHeatingZones());
                     }
-//                    DataModelResponse[] dataArray = client.getData();
-//                    for (DataModelResponse data : dataArray) {
-//                        discoverWeather(data.getWeather(), data.getName(), data.getLocationId());
-//                    }
                 }
             } catch (Exception e) {
                 logger.warn("{}", e.getMessage(), e);
@@ -93,36 +87,17 @@ public class EvohomeDiscoveryService extends AbstractDiscoveryService {
         String name = controlSystem.getName();
         ThingUID thingUID = findThingUID(EvohomeBindingConstants.THING_TYPE_EVOHOME_DISPLAY.getId(), name);
         Map<String, Object> properties = new HashMap<>();
+
+        //TODO NR: Doesn't the gateway also have a location? I don't have a dual location system but from the EvoHome UI
+        //         it looks to me like you can have two houses in one account and then you could have 2 displays...
+        //     JZ: Yes it does, I even think that a single location can have multiple displays. Currently that info is
+        //         not stored. Something to implement and test for the future as I don't think that there are a lot of
+        //         users with more than one gateway and/or display. I raised an issue accordingly.
+
         properties.put(EvohomeBindingConstants.DEVICE_NAME, name);
         properties.put(EvohomeBindingConstants.DEVICE_ID, controlSystem.getId());
         addDiscoveredThing(thingUID, properties, name);
     }
-
-    private void discoverWeather(Weather weather, String name, String locationId) throws IllegalArgumentException {
-        ThingUID thingUID = findThingUID(EvohomeBindingConstants.THING_TYPE_EVOHOME_LOCATION.getId(), name);
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(EvohomeBindingConstants.LOCATION_NAME, name);
-        properties.put(EvohomeBindingConstants.LOCATION_ID, locationId);
-        addDiscoveredThing(thingUID, properties, name);
-    }
-/*
-    private void discoverRadiatorValves(Device[] devices, String locationName, String locationId)
-            throws IllegalArgumentException {
-        for (Device device : devices) {
-            ThingUID thingUID = findThingUID(EvohomeBindingConstants.THING_TYPE_EVOHOME_RADIATOR_VALVE.getId(),
-                    Integer.toString(device.getDeviceId()));
-            String name = device.getName();
-            logger.debug("found Valve device_name:{} device_id:{} location_name:{} location_id:{}", name,
-                    device.getDeviceId(), locationName, locationId);
-
-            Map<String, Object> properties = new HashMap<>();
-            properties.put(EvohomeBindingConstants.DEVICE_ID, device.getDeviceId());
-            properties.put(EvohomeBindingConstants.DEVICE_NAME, device.getName());
-            properties.put(EvohomeBindingConstants.LOCATION_ID, locationId);
-            properties.put(EvohomeBindingConstants.LOCATION_NAME, locationName);
-            addDiscoveredThing(thingUID, properties, name);
-        }
-    }*/
 
     private void addDiscoveredThing(ThingUID thingUID, Map<String, Object> properties, String displayLabel) {
         DiscoveryResult discoveryResult = DiscoveryResultBuilder.create(thingUID).withProperties(properties)

@@ -73,20 +73,11 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
         }
     }
 
-    private <TIn, TOut> TOut doAuthenticatedRequest(HttpMethod method, String url,TIn requestContainer, TOut out) {
-        //TODO check authentication or expired -> refresh access token, fallback re-authenticate
-
-        authenticate(); // crude workaround
-
-        return apiAccess.doAuthenticatedRequest(method, url, null, requestContainer, out);
-    }
-
-
     private UserAccount requestUserAccount() {
         String url = EvohomeApiConstants.URL_V2_BASE + EvohomeApiConstants.URL_V2_ACCOUNT;
 
         UserAccount userAccount =  new UserAccount();
-        userAccount = doAuthenticatedRequest(HttpMethod.GET, url, null, userAccount);
+        userAccount = apiAccess.doAuthenticatedRequest(HttpMethod.GET, url, null, null, userAccount);
 
         return userAccount;
     }
@@ -98,7 +89,7 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
             url = String.format(url, useraccount.userId);
 
             locations = new Locations();
-            locations = doAuthenticatedRequest(HttpMethod.GET, url, null, locations);
+            locations = apiAccess.doAuthenticatedRequest(HttpMethod.GET, url, null, null, locations);
         }
 
         return locations;
@@ -112,7 +103,7 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
                 String url = EvohomeApiConstants.URL_V2_BASE + EvohomeApiConstants.URL_V2_STATUS;
                 url = String.format(url, location.locationInfo.locationId);
                 LocationStatus status = new LocationStatus();
-                status = doAuthenticatedRequest(HttpMethod.GET, url, null, status);
+                status = apiAccess.doAuthenticatedRequest(HttpMethod.GET, url, null, null, status);
                 locationsStatus.add(status);
             }
         }
@@ -122,13 +113,14 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
 
     @Override
     public boolean login() {
-       boolean success = authenticate();
+       boolean success = authenticateWithUsername();
 
         // If the authentication succeeded, gather the basic intel as well
         if (success == true) {
             useraccount        = requestUserAccount();
             locations          = requestLocations();
             controlSystemCache = populateCache();
+            update();
         } else {
             apiAccess.setAuthentication(null);
             logger.error("Authorization failed");
@@ -137,21 +129,21 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
         return success;
     }
 
-    private boolean authenticate() {
+    private boolean authenticate(String credentials, String grantType) {
         Authentication authentication = new Authentication();
 
-        try {
-            String data = "Username=" + URLEncoder.encode(configuration.username, "UTF-8") + "&"
-                        + "Password=" + URLEncoder.encode(configuration.password, "UTF-8") + "&"
+            String data = credentials + "&"
                         + "Host=rs.alarmnet.com%2F&"
                         + "Pragma=no-cache&"
                         + "Cache-Control=no-store+no-cache&"
                         + "scope=EMEA-V1-Basic+EMEA-V1-Anonymous+EMEA-V1-Get-Current-User-Account&"
-                        + "grant_type=password&"
+                        + "grant_type=" + grantType+ "&"
                         + "Content-Type=application%2Fx-www-form-urlencoded%3B+charset%3Dutf-8&"
                         + "Connection=Keep-Alive";
 
         HashMap<String,String> headers = new HashMap<String,String>();
+
+        //TODO base64 encode (app_id:test)
         headers.put("Authorization", "Basic YjAxM2FhMjYtOTcyNC00ZGJkLTg4OTctMDQ4YjlhYWRhMjQ5OnRlc3Q=");
         headers.put("Accept", "application/json, application/xml, text/json, text/x-json, text/javascript, text/xml");
 
@@ -161,11 +153,51 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
 
         apiAccess.setAuthentication(authentication);
 
+        if (authentication != null) {
+            authentication.systemTime = System.currentTimeMillis() / 1000;
+        }
+
+        return (authentication != null);
+    }
+
+    private boolean authenticateWithUsername() {
+        boolean result = false;
+
+        try {
+            String credentials = "Username=" + URLEncoder.encode(configuration.username, "UTF-8") + "&"
+                               + "Password=" + URLEncoder.encode(configuration.password, "UTF-8");
+            result = authenticate(credentials, "password");
         } catch (UnsupportedEncodingException e) {
             logger.error("Credential conversion failed", e);
         }
 
-        return (authentication != null);
+        return result;
+    }
+
+    private boolean authenticateWithToken(String accessToken){
+        String credentials = "refresh_token=" + accessToken;
+        return authenticate(credentials, "refresh_token");
+    }
+
+    private void updateAuthentication() {
+        Authentication authentication = apiAccess.getAuthentication();
+        if (authentication == null) {
+            authenticateWithUsername();
+        } else {
+            // Compare current time to the expiration time + four intervals for slack
+            long currentTime = System.currentTimeMillis() / 1000;
+            long expiration  = authentication.systemTime + authentication.expiresIn;
+            expiration += 4 * (configuration.refreshInterval / 1000);
+
+            // Update the access token just before it expires, but fall back to username and password
+            // when it fails (i.e. refresh token had been invalidated)
+            if (currentTime > expiration) {
+                authenticateWithToken(authentication.refreshToken);
+                if (apiAccess.getAuthentication() == null) {
+                    authenticateWithUsername();
+                }
+            }
+        }
     }
 
     private Map<Integer, ControlSystemAndStatus> populateCache() throws NullPointerException {
@@ -207,6 +239,7 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
 
     @Override
     public void update() {
+        updateAuthentication();
         locationsStatus = requestLocationsStatus();
         updateCache();
     }
@@ -262,9 +295,6 @@ public class EvohomeApiClientV2 implements EvohomeApiClient {
     }
 
     private LocationsStatus getLocationStatus(){
-        if(locationsStatus == null){
-            update();
-        }
         return locationsStatus;
     }
 
