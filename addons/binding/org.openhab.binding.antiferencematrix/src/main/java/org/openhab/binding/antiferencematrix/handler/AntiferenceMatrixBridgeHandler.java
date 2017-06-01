@@ -7,56 +7,113 @@
  */
 package org.openhab.binding.antiferencematrix.handler;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.eclipse.smarthome.core.library.types.OnOffType;
+import org.eclipse.smarthome.core.library.types.StringType;
 import org.eclipse.smarthome.core.thing.Bridge;
 import org.eclipse.smarthome.core.thing.ChannelUID;
+import org.eclipse.smarthome.core.thing.Thing;
+import org.eclipse.smarthome.core.thing.ThingStatus;
+import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseBridgeHandler;
+import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.RefreshType;
 import org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants;
+import org.openhab.binding.antiferencematrix.internal.AntiferenceMatrixApi;
 import org.openhab.binding.antiferencematrix.internal.discovery.AntiferenceMatrixDiscoveryListener;
-import org.openhab.binding.antiferencematrix.internal.response.MatrixResponse;
-import org.openhab.binding.antiferencematrix.internal.response.PortDetailsResponse;
-
-import com.google.gson.Gson;
+import org.openhab.binding.antiferencematrix.internal.model.InputPort;
+import org.openhab.binding.antiferencematrix.internal.model.InputPortDetails;
+import org.openhab.binding.antiferencematrix.internal.model.OutputPort;
+import org.openhab.binding.antiferencematrix.internal.model.OutputPortDetails;
+import org.openhab.binding.antiferencematrix.internal.model.Port;
+import org.openhab.binding.antiferencematrix.internal.model.PortList;
+import org.openhab.binding.antiferencematrix.internal.model.SystemDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
 
+    private final Logger logger = LoggerFactory.getLogger(AntiferenceMatrixBridgeHandler.class);
     private AntiferenceMatrixDiscoveryListener listener = null;
+    private final AntiferenceMatrixApi api;
 
     public AntiferenceMatrixBridgeHandler(Bridge bridge) {
         super(bridge);
+        api = new AntiferenceMatrixApi();
     }
 
     @Override
     public void initialize() {
-        // TODO Auto-generated method stub
         super.initialize();
+        try {
+            api.start();
+        } catch (Exception e) {
+            logger.error("Error starting Matrix API", e);
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "Error connecting to API: " + e.getMessage());
+        }
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         if (command instanceof RefreshType) {
-            handleRefreshCommand(channelUID, (RefreshCommand) command);
+            handleRefreshCommand(channelUID, (RefreshType) command);
         }
-        // TODO Handle other commands
-    }
+    }
 
     protected void handleRefreshCommand(ChannelUID channelUID, RefreshType command) {
-        MatrixData data = updateMatrixData();
-        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.POWER_CHANNEL),
-                data.getPower());
+        matrixStatusUpdate();
+    }
+
+    private void fullUpdate() {
+        matrixStatusUpdate();
+        portStatusUpdate();
+    }
+
+    public void matrixStatusUpdate() {
+        SystemDetails systemDetails = api.getSystemDetails();
+        updateState(
+                new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.MATRIX_STATUS_MESSAGE_CHANNEL),
+                new StringType(systemDetails.getStatusMessage()));
 
     }
 
-    private void notifyDiscoveryListener() {
-        listener.update();
+    public void portStatusUpdate() {
+        Map<Integer, AntiferenceMatrixOutputHandler> outputPortHandlers = new HashMap<Integer, AntiferenceMatrixOutputHandler>();
+        Map<Integer, AntiferenceMatrixOutputHandler> inputPortHandlers = new HashMap<Integer, AntiferenceMatrixOutputHandler>();
+        for (Thing handler : getThing().getThings()) {
+            ThingHandler thingHandler = handler.getHandler();
+            if (thingHandler instanceof AntiferenceMatrixOutputHandler) {
+                AntiferenceMatrixOutputHandler outputHandler = (AntiferenceMatrixOutputHandler) thingHandler;
+                outputPortHandlers.put(outputHandler.getOutputId(), outputHandler);
+            } else if (thingHandler instanceof AntiferenceMatrixOutputHandler) {
+                AntiferenceMatrixOutputHandler inputHandler = (AntiferenceMatrixOutputHandler) thingHandler;
+            }
+        }
+
+        PortList portList = api.getPortList();
+        for (Port port : portList.getPorts()) {
+            if (port instanceof InputPort) {
+                InputPortDetails portDetails = api.getInputPortDetails(port.getBay());
+            } else if (port instanceof OutputPort) {
+                OutputPortDetails portDetails = api.getOutputPortDetails(port.getBay());
+            }
+        }
+    }
+
+    public void smallUpdate() {
+        PortList portList = api.getPortList();
+        notifyDiscoveryListener(portList);
+    }
+
+    private void notifyDiscoveryListener(PortList portList) {
+        if (listener != null) {
+            listener.update(portList);
+        }
     }
 
     public void registerDiscoveryListener(AntiferenceMatrixDiscoveryListener listener) {
@@ -67,4 +124,28 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
         this.listener = null;
     }
 
+    public void changePower(int outputId, OnOffType command) {
+        boolean on;
+        switch (command) {
+            case ON:
+                on = true;
+                break;
+            case OFF:
+            default:
+                on = false;
+        }
+        api.changePower(outputId, on);
+    }
+
+    public void changeSource(int outputId, DecimalType command) {
+        api.changeSource(outputId, command.intValue());
+    }
+
+    public OutputPortDetails getOutputPortDetails(int outputId) {
+        return api.getOutputPortDetails(outputId);
+    }
+
+    public InputPortDetails getInputPortDetails(int inputId) {
+        return api.getInputPortDetails(inputId);
+    }
 }

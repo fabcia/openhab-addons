@@ -4,13 +4,13 @@
         xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
         xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
 
-    <bridge-type id="bridge">
+    <bridge-type id="matrix">
         <label>Antiference Matrix</label>
         <description>The Antiference Matrix.</description>
         <config-description>
-            <parameter name="ipAddress" type="text" required="true">
-                <label>IP Adress</label>
-                <description>The IP address of the matrix.</description>
+            <parameter name="address" type="text" required="true">
+                <label>IP address or host name</label>
+                <description>The IP address or host name of the matrix.</description>
             </parameter>
             <parameter name="pollingInterval" type="integer" required="true" min="10" max="600">
                 <label>Polling Interval in seconds</label>

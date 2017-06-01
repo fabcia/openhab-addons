@@ -13,7 +13,7 @@ import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandlerFactory;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
-import org.openhab.binding.antiferencematrix.handler.AntiferenceMatrixHandler;
+import org.openhab.binding.antiferencematrix.handler.AntiferenceMatrixOutputHandler;
 
 /**
  * The {@link AntiferenceMatrixHandlerFactory} is responsible for creating things and thing
@@ -33,8 +33,8 @@ public class AntiferenceMatrixHandlerFactory extends BaseThingHandlerFactory {
 
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
-        if (thingTypeUID.equals(OUTPUT_TYPE)) {
-            return new AntiferenceMatrixHandler(thing);
+        if (thingTypeUID.equals(THING_TYPE_MATRIX_OUTPUT)) {
+            return new AntiferenceMatrixOutputHandler(thing);
         }
 
         return null;

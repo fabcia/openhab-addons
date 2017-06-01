@@ -4,14 +4,24 @@
         xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
         xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
 
-    <thing-type id="output">
+    <thing-type id="matrixoutput">
         <label>Matrix Output</label>
         <description>Antiference Matrix Output - essentially a TV</description>
         <channels>
             <channel id="power" typeId="switch"/>
             <channel id="source" typeId="source-channel"/>
+            <channel id="statusmessage" typeId="statusmessage"/>
         </channels>
     </thing-type>
+
+    <thing-type id="matrixinput">
+        <label>Matrix Input</label>
+        <description>Antiference Matrix Input - e.g. A DVD Player</description>
+        <channels>
+            <channel id="statusmessage" typeId="statusmessage"/>
+        </channels>
+    </thing-type>
+
 
     <channel-type id="source-channel">
         <item-type>Number</item-type>
@@ -19,5 +29,12 @@
         <description>Input source for this output</description>
         <state min="0" max="3" step="1" pattern="%.1f" readOnly="false"></state>
     </channel-type>
+    
+    <channel-type id="statusmessage">
+        <item-type>String</item-type>
+        <label>Status Message</label>
+        <description>Status Msssage</description>
+        <state pattern="%s" readOnly="true" />
+    </channel-type>    
 
 </thing:thing-descriptions>

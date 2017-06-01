@@ -1,25 +1,46 @@
 package org.openhab.binding.antiferencematrix.internal.model;
 
-public class SystemDetails {
+import com.google.gson.annotations.SerializedName;
 
-    /*
-     * {
-     * "Result":true,
-     * "Model":"AABB11",
-     * "Version":"1.0.0-0",
-     * "Serial":"A1SN6195135",
-     * "MAC":"XX:XX:XX:XX:XX:XX",
-     * "BoardRev":0,
-     * "StatusMessage":"Healthy",
-     * "Status":0
-     * }
-     */
+public class SystemDetails extends Response {
 
     private String model;
     private String version;
     private String serial;
+
+    @SerializedName("MAC")
     private String mac;
+
     private int boardRev;
     private String statusMessage;
     private int status;
+
+    public String getModel() {
+        return model;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public String getSerial() {
+        return serial;
+    }
+
+    public String getMac() {
+        return mac;
+    }
+
+    public int getBoardRev() {
+        return boardRev;
+    }
+
+    public String getStatusMessage() {
+        return statusMessage;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
 }

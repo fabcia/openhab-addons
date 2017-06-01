@@ -9,15 +9,28 @@ public abstract class Port {
     private String name;
     private int dps;
 
-    /*
-     * {
-     * "Bay":0,
-     * "Mode":"Input",
-     * "Type":"HDMI",
-     * "Status":0,
-     * "Name":"BT YouView",
-     * "DPS":0
-     * },
-     */
+    public int getBay() {
+        return bay;
+    }
+
+    public String getMode() {
+        return mode;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getDps() {
+        return dps;
+    }
 
 }

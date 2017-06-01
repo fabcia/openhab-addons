@@ -5,15 +5,31 @@ import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.smarthome.core.library.types.DecimalType;
-import org.eclipse.smarthome.core.library.types.OnOffType;
-import org.openhab.binding.antiferencematrix.internal.response.MatrixResponse;
-import org.openhab.binding.antiferencematrix.internal.response.PortDetailsResponse;
+import org.openhab.binding.antiferencematrix.internal.model.InputPortDetails;
+import org.openhab.binding.antiferencematrix.internal.model.OutputPortDetails;
+import org.openhab.binding.antiferencematrix.internal.model.Port;
+import org.openhab.binding.antiferencematrix.internal.model.PortDeserializer;
+import org.openhab.binding.antiferencematrix.internal.model.PortList;
+import org.openhab.binding.antiferencematrix.internal.model.Response;
+import org.openhab.binding.antiferencematrix.internal.model.SystemDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+/**
+ * This class encapsulates the API of the Matrix to make calls easier.
+ *
+ * @author Neil
+ *
+ */
 public class AntiferenceMatrixApi {
 
+    private Logger logger = LoggerFactory.getLogger(AntiferenceMatrixApi.class);
+
+    // TODO make configuration
     private static final String URL = "http://matrix.fantasticfox.com";
 
     private static final String POWER_FUNCTION_TEMPLATE = "%s/CEC/%s/Output/%s";
@@ -36,32 +52,138 @@ public class AntiferenceMatrixApi {
     private final HttpClient httpClient;
     private final Gson gson;
 
+    private boolean initalized = false;
+
+    /**
+     * Create an instance of the API to connect to a single matrix.
+     *
+     * You must call start() before using the api.
+     *
+     */
     public AntiferenceMatrixApi() {
         httpClient = new HttpClient();
-        gson = new Gson();
+        gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.UPPER_CAMEL_CASE)
+                .registerTypeAdapter(Port.class, new PortDeserializer()).create();
     }
 
-    public void connect() {
+    /**
+     * Starts the API ready for use.
+     *
+     * @throws Exception If the HTTP client can't be started.
+     */
+    public void start() throws Exception {
+        httpClient.start();
+        initalized = true;
     }
 
-    public boolean changePower(int outputId, OnOffType command) {
-        String url = getPowerFunction(command, outputId);
+    /**
+     * Stops the API. You can start it again by calling start();
+     *
+     * @throws Exception If the HTTP client can't be stopped.
+     */
+    public void stop() throws Exception {
+        httpClient.stop();
+        initalized = false;
+    }
+
+    /**
+     * Turns the power on or off for the given output port.
+     * Note: For this to work the TV must support CEC and have it enabled.
+     *
+     * @param outputId
+     * @param on
+     * @return The response
+     */
+    public Response changePower(int outputId, boolean on) {
+        String url = getPowerFunction(on, outputId);
         String response = callUrl(url);
-        MatrixResponse matrixResponse = gson.fromJson(response, MatrixResponse.class);
-        return matrixResponse.getResult();
+        Response matrixResponse = gson.fromJson(response, Response.class);
+        if (!matrixResponse.getResult()) {
+            logger.error("Error calling changePower({}, {}), error: {}", outputId, on,
+                    matrixResponse.getErrorMessage());
+        }
+        return matrixResponse;
     }
 
-    public boolean changeSource(int outputId, DecimalType command) {
-        String url = getSourceFunction(command.intValue(), outputId);
+    /**
+     * Change the source for the given output to the given input.
+     *
+     * @param outputId The output to change
+     * @param inputId The input we want to use
+     * @return The response
+     */
+    public Response changeSource(int outputId, int inputId) {
+        String url = getSourceFunction(inputId, outputId);
         String response = callUrl(url);
-        MatrixResponse matrixResponse = gson.fromJson(response, MatrixResponse.class);
-        return matrixResponse.getResult();
+        Response matrixResponse = gson.fromJson(response, Response.class);
+        if (!matrixResponse.getResult()) {
+            logger.error("Error calling changeSource({}, {}), error: {}", outputId, inputId,
+                    matrixResponse.getErrorMessage());
+        }
+        return matrixResponse;
     }
 
-    public void updatePortStatus() {
-        String response = callUrl(PORT_LIST_URL);
-        PortDetailsResponse portDetailsResponse = gson.fromJson(response, PortDetailsResponse.class);
-        // TODO process port details
+    /**
+     * Returns the system details from the matrix
+     *
+     * @return The SystemDetails of the matrix
+     */
+    public SystemDetails getSystemDetails() {
+        String jsonResponse = callUrl(SYSTEM_DETAILS_URL);
+        SystemDetails systemDetails = gson.fromJson(jsonResponse, SystemDetails.class);
+        if (!systemDetails.getResult()) {
+            logger.error("Error calling getSystemDetails(), error: {}", systemDetails.getErrorMessage());
+        }
+        return systemDetails;
+    }
+
+    /**
+     * Returns the complete port list from the matrix
+     *
+     * @return The Port List
+     */
+    public PortList getPortList() {
+        String jsonResponse = callUrl(PORT_LIST_URL);
+        PortList portList = gson.fromJson(jsonResponse, PortList.class);
+        if (!portList.getResult()) {
+            logger.error("Error calling getPortList(), error: {}", portList.getErrorMessage());
+        }
+
+        return portList;
+    }
+
+    /**
+     * Get Input Port Details
+     *
+     * @param inputId The input port Id
+     * @return The ports details
+     */
+    public InputPortDetails getInputPortDetails(int inputId) {
+        String url = getInputPortDetailsFunction(inputId);
+        String jsonResponse = callUrl(url);
+        InputPortDetails inputPortDetails = gson.fromJson(jsonResponse, InputPortDetails.class);
+        if (!inputPortDetails.getResult()) {
+            logger.error("Error calling getInputPortDetails({}), error: {}", inputId,
+                    inputPortDetails.getErrorMessage());
+        }
+        return inputPortDetails;
+    }
+
+    /**
+     * Get Output Port Details
+     *
+     * @param outputId The output port Id
+     * @return The ports details
+     */
+    public OutputPortDetails getOutputPortDetails(int outputId) {
+        String url = getOutputPortDetailsFunction(outputId);
+        String jsonResponse = callUrl(url);
+        OutputPortDetails outputPortDetails = gson.fromJson(jsonResponse, OutputPortDetails.class);
+        if (!outputPortDetails.getResult()) {
+            logger.error("Error calling getOutputPortDetails({}), error: {}", outputId,
+                    outputPortDetails.getErrorMessage());
+        }
+        return outputPortDetails;
     }
 
     /**
@@ -71,6 +193,10 @@ public class AntiferenceMatrixApi {
      * @return The string response.
      */
     private String callUrl(String url) {
+        if (!initalized) {
+            throw new RuntimeException("You must call AntiferenceMatrixApi.start() before using the API");
+        }
+
         ContentResponse response;
         try {
             response = httpClient.GET(url);
@@ -88,16 +214,12 @@ public class AntiferenceMatrixApi {
         return null;
     }
 
-    private String getPowerFunction(OnOffType command, int outputId) {
+    private String getPowerFunction(boolean on, int outputId) {
         String onOrOff;
-        switch (command) {
-            case ON:
-                onOrOff = ON_STRING;
-                break;
-            case OFF:
-            default:
-                onOrOff = OFF_STRING;
-                break;
+        if (on) {
+            onOrOff = ON_STRING;
+        } else {
+            onOrOff = OFF_STRING;
         }
         return String.format(POWER_FUNCTION_TEMPLATE, URL, onOrOff, outputId);
     }

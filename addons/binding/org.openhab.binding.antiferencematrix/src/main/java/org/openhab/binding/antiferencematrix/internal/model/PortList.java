@@ -1,85 +1,39 @@
 package org.openhab.binding.antiferencematrix.internal.model;
 
+import java.util.LinkedList;
 import java.util.List;
 
-public class PortList {
+public class PortList extends Response {
 
     private List<Port> ports;
 
-    /*
-     * {
-     * "Result":true,
-     * "Ports":[
-     * {
-     * "Bay":0,
-     * "Mode":"Input",
-     * "Type":"HDMI",
-     * "Status":0,
-     * "Name":"BT YouView",
-     * "DPS":0
-     * },
-     * {
-     * "Bay":1,
-     * "Mode":"Input",
-     * "Type":"HDMI",
-     * "Status":0,
-     * "Name":"TT YouView",
-     * "DPS":64
-     * },
-     * {
-     * "Bay":2,
-     * "Mode":"Input",
-     * "Type":"HDMI",
-     * "Status":0,
-     * "Name":"Roku",
-     * "DPS":64
-     * },
-     * {
-     * "Bay":3,
-     * "Mode":"Input",
-     * "Type":"HDMI",
-     * "Status":0,
-     * "Name":"Bluray",
-     * "DPS":64
-     * },
-     * {
-     * "Bay":0,
-     * "Mode":"Output",
-     * "Type":"HDBT-TXLITE",
-     * "Status":0,
-     * "Name":"Sitting Room",
-     * "DPS":1,
-     * "SinkPowerStatus":1
-     * },
-     * {
-     * "Bay":1,
-     * "Mode":"Output",
-     * "Type":"HDBT-TXLITE",
-     * "Status":0,
-     * "Name":"Bedroom",
-     * "DPS":1,
-     * "SinkPowerStatus":1
-     * },
-     * {
-     * "Bay":2,
-     * "Mode":"Output",
-     * "Type":"HDBT-TXLITE",
-     * "Status":3,
-     * "Name":"Study",
-     * "DPS":-1,
-     * "SinkPowerStatus":-1
-     * },
-     * {
-     * "Bay":3,
-     * "Mode":"Output",
-     * "Type":"HDBT-TXLITE",
-     * "Status":0,
-     * "Name":"Yoga",
-     * "DPS":-2,
-     * "SinkPowerStatus":-2
-     * }
-     * ]
-     * }
+    /**
+     * A list of InputPort and OutputPort
+     *
+     * @return The ports on this matrix
      */
+    public List<Port> getPorts() {
+        return ports;
+    }
+
+    public List<InputPort> getInputPorts() {
+        List<InputPort> inputPorts = new LinkedList<InputPort>();
+        for (Port port : ports) {
+            if (port instanceof InputPort) {
+                inputPorts.add((InputPort) port);
+            }
+        }
+        return inputPorts;
+    }
+
+    public List<OutputPort> getOutputPorts() {
+        List<OutputPort> outputPorts = new LinkedList<OutputPort>();
+        for (Port port : ports) {
+            if (port instanceof OutputPort) {
+                outputPorts.add((OutputPort) port);
+            }
+        }
+        return outputPorts;
+    }
 
 }
