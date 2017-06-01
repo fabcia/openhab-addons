@@ -12,9 +12,7 @@ import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.ThingStatusDetail;
-import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
-import org.eclipse.smarthome.core.types.RefreshType;
 import org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants;
 import org.openhab.binding.antiferencematrix.internal.model.InputPortDetails;
 import org.slf4j.Logger;
@@ -26,62 +24,48 @@ import org.slf4j.LoggerFactory;
  *
  * @author Neil Renaud - Initial contribution
  */
-public class AntiferenceMatrixInputHandler extends BaseThingHandler {
+public class AntiferenceMatrixInputHandler extends AntiferenceMatrixBasePortHandler {
 
     private Logger logger = LoggerFactory.getLogger(AntiferenceMatrixInputHandler.class);
+
+    private String statusMessage;
 
     public AntiferenceMatrixInputHandler(Thing thing) {
         super(thing);
     }
 
     @Override
-    public void handleCommand(ChannelUID channelUID, Command command) {
-        AntiferenceMatrixBridgeHandler bridge = getMatrixBridge();
-        if (bridge == null) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
-            return;
-        }
-
-        if (command instanceof RefreshType) {
-            doRefresh();
-        }
-    }
-
-    private void doRefresh() {
-        AntiferenceMatrixBridgeHandler bridge = getMatrixBridge();
-        if (bridge == null) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
-            return;
-        }
+    void doRefresh(AntiferenceMatrixBridgeHandler bridge) {
         InputPortDetails inputPortDetails = bridge.getInputPortDetails(getInputId());
         if (!inputPortDetails.getResult()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                     inputPortDetails.getErrorMessage());
         }
-        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.PORT_STATUS_MESSAGE_CHANNEL),
-                new StringType(inputPortDetails.getStatusMessage()));
-        updateStatus(ThingStatus.ONLINE);
+        refresh(inputPortDetails);
     }
 
     @Override
-    public void initialize() {
-        // Long running initialization should be done asynchronously in background.
-        // Note: When initialization can NOT be done set the status with more details for further
-        // analysis. See also class ThingStatusDetail for all available status details.
-        // Add a description to give user information to understand why thing does not work
-        // as expected. E.g.
-        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-        // "Can not access device as username and/or password are invalid");
-        doRefresh();
-    }
-
-    private AntiferenceMatrixBridgeHandler getMatrixBridge() {
-        AntiferenceMatrixBridgeHandler bridge = (AntiferenceMatrixBridgeHandler) getBridge().getHandler();
-        return bridge;
+    void handleOtherCommand(ChannelUID channelUID, Command command, AntiferenceMatrixBridgeHandler bridge) {
+        // We don't handle any other commands on Input Ports
     }
 
     public int getInputId() {
         String inputId = getThing().getProperties().get(AntiferenceMatrixBindingConstants.PROPERTY_INPUT_ID);
         return Integer.valueOf(inputId);
     }
+
+    public void refresh(InputPortDetails inputPortDetails) {
+        // if (statusMessage == null || !statusMessage.equals(inputPortDetails.getStatusMessage())) {
+        statusMessage = inputPortDetails.getStatusMessage();
+        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.PORT_STATUS_MESSAGE_CHANNEL),
+                new StringType(statusMessage));
+        // }
+        updateStatusIfRequired(ThingStatus.ONLINE);
+    }
+
+    @Override
+    Logger getLogger() {
+        return logger;
+    }
+
 }

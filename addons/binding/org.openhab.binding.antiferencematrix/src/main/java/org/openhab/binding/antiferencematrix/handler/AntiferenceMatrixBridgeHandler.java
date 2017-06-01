@@ -9,6 +9,8 @@ package org.openhab.binding.antiferencematrix.handler;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.eclipse.smarthome.core.library.types.OnOffType;
@@ -36,10 +38,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
+    // TODO put in config
+    private static final int REFRESH_INTERVAL = 10;
 
     private final Logger logger = LoggerFactory.getLogger(AntiferenceMatrixBridgeHandler.class);
-    private AntiferenceMatrixDiscoveryListener listener = null;
     private final AntiferenceMatrixApi api;
+
+    private AntiferenceMatrixDiscoveryListener listener = null;
+    protected ScheduledFuture<?> refreshTask;
 
     public AntiferenceMatrixBridgeHandler(Bridge bridge) {
         super(bridge);
@@ -48,13 +54,59 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
 
     @Override
     public void initialize() {
-        super.initialize();
+        logger.info("Initalizing matrix: {}", getThing().getLabel());
         try {
             api.start();
+            scheduler.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        fullUpdate();
+                        startRefreshTask();
+                    } catch (Exception e) {
+                        logger.error("Error whilst initalizing", e);
+                    }
+
+                }
+            }, 0, TimeUnit.SECONDS);
+
         } catch (Exception e) {
             logger.error("Error starting Matrix API", e);
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                     "Error connecting to API: " + e.getMessage());
+        }
+        updateStatus(ThingStatus.ONLINE);
+        logger.info("Finished initalizing matrix: {}", getThing().getLabel());
+    }
+
+    private void startRefreshTask() {
+        disposeRefreshTask();
+
+        refreshTask = scheduler.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    fullUpdate();
+                } catch (Exception e) {
+                    logger.error("Error whilst refreshing", e);
+                }
+            }
+        }, 0, REFRESH_INTERVAL, TimeUnit.SECONDS);
+    }
+
+    private void disposeRefreshTask() {
+        if (refreshTask != null) {
+            refreshTask.cancel(true);
+        }
+    }
+
+    @Override
+    public void dispose() {
+        disposeRefreshTask();
+        try {
+            api.stop();
+        } catch (Exception e) {
+            logger.error("Error stopping http client", e);
         }
     }
 
@@ -84,14 +136,15 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
 
     public void portStatusUpdate() {
         Map<Integer, AntiferenceMatrixOutputHandler> outputPortHandlers = new HashMap<Integer, AntiferenceMatrixOutputHandler>();
-        Map<Integer, AntiferenceMatrixOutputHandler> inputPortHandlers = new HashMap<Integer, AntiferenceMatrixOutputHandler>();
+        Map<Integer, AntiferenceMatrixInputHandler> inputPortHandlers = new HashMap<Integer, AntiferenceMatrixInputHandler>();
         for (Thing handler : getThing().getThings()) {
             ThingHandler thingHandler = handler.getHandler();
             if (thingHandler instanceof AntiferenceMatrixOutputHandler) {
                 AntiferenceMatrixOutputHandler outputHandler = (AntiferenceMatrixOutputHandler) thingHandler;
                 outputPortHandlers.put(outputHandler.getOutputId(), outputHandler);
-            } else if (thingHandler instanceof AntiferenceMatrixOutputHandler) {
-                AntiferenceMatrixOutputHandler inputHandler = (AntiferenceMatrixOutputHandler) thingHandler;
+            } else if (thingHandler instanceof AntiferenceMatrixInputHandler) {
+                AntiferenceMatrixInputHandler inputHandler = (AntiferenceMatrixInputHandler) thingHandler;
+                inputPortHandlers.put(inputHandler.getInputId(), inputHandler);
             }
         }
 
@@ -99,8 +152,19 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
         for (Port port : portList.getPorts()) {
             if (port instanceof InputPort) {
                 InputPortDetails portDetails = api.getInputPortDetails(port.getBay());
+                AntiferenceMatrixInputHandler inputPortHandler = inputPortHandlers.get(portDetails.getBay());
+                if (inputPortHandler != null) {
+                    inputPortHandler.refresh(portDetails);
+                }
+                for (AntiferenceMatrixOutputHandler outputHandler : outputPortHandlers.values()) {
+                    outputHandler.refresh(portDetails);
+                }
             } else if (port instanceof OutputPort) {
                 OutputPortDetails portDetails = api.getOutputPortDetails(port.getBay());
+                AntiferenceMatrixOutputHandler outputPortHandler = outputPortHandlers.get(portDetails.getBay());
+                if (outputPortHandler != null) {
+                    outputPortHandler.refresh(portDetails);
+                }
             }
         }
     }

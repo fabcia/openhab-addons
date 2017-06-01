@@ -16,10 +16,9 @@ import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.ThingStatusDetail;
-import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
-import org.eclipse.smarthome.core.types.RefreshType;
 import org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants;
+import org.openhab.binding.antiferencematrix.internal.model.InputPortDetails;
 import org.openhab.binding.antiferencematrix.internal.model.OutputPortDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,71 +29,86 @@ import org.slf4j.LoggerFactory;
  *
  * @author Neil Renaud - Initial contribution
  */
-public class AntiferenceMatrixOutputHandler extends BaseThingHandler {
+public class AntiferenceMatrixOutputHandler extends AntiferenceMatrixBasePortHandler {
 
     private Logger logger = LoggerFactory.getLogger(AntiferenceMatrixOutputHandler.class);
+
+    private OnOffType power;
+    private int source;
+    private String statusMessage;
 
     public AntiferenceMatrixOutputHandler(Thing thing) {
         super(thing);
     }
 
     @Override
-    public void handleCommand(ChannelUID channelUID, Command command) {
-        AntiferenceMatrixBridgeHandler bridge = getMatrixBridge();
-        if (bridge == null) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
-            return;
-        }
-
-        if (command instanceof RefreshType) {
-            doRefresh();
-        }
+    void handleOtherCommand(ChannelUID channelUID, Command command, AntiferenceMatrixBridgeHandler bridge) {
+        int outputId = getOutputId();
         if (channelUID.getId().equals(POWER_CHANNEL) && command instanceof OnOffType) {
-            int outputId = getOutputId();
             bridge.changePower(outputId, (OnOffType) command);
         }
         if (channelUID.getId().equals(SOURCE_CHANNEL) && command instanceof DecimalType) {
-            int outputId = 0;
             bridge.changeSource(outputId, (DecimalType) command);
         }
-        updateStatus(ThingStatus.ONLINE);
     }
 
-    private void doRefresh() {
-        AntiferenceMatrixBridgeHandler bridge = getMatrixBridge();
-        if (bridge == null) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
-            return;
-        }
+    @Override
+    void doRefresh(AntiferenceMatrixBridgeHandler bridge) {
         OutputPortDetails outputPortDetails = bridge.getOutputPortDetails(getOutputId());
         if (!outputPortDetails.getResult()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                     outputPortDetails.getErrorMessage());
         }
-        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.PORT_STATUS_MESSAGE_CHANNEL),
-                new StringType(outputPortDetails.getStatusMessage()));
-        updateStatus(ThingStatus.ONLINE);
-    }
-
-    @Override
-    public void initialize() {
-        // Long running initialization should be done asynchronously in background.
-        // Note: When initialization can NOT be done set the status with more details for further
-        // analysis. See also class ThingStatusDetail for all available status details.
-        // Add a description to give user information to understand why thing does not work
-        // as expected. E.g.
-        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-        // "Can not access device as username and/or password are invalid");
-        doRefresh();
-    }
-
-    private AntiferenceMatrixBridgeHandler getMatrixBridge() {
-        AntiferenceMatrixBridgeHandler bridge = (AntiferenceMatrixBridgeHandler) getBridge().getHandler();
-        return bridge;
+        refresh(outputPortDetails);
     }
 
     public int getOutputId() {
         String outputId = getThing().getProperties().get(AntiferenceMatrixBindingConstants.PROPERTY_OUTPUT_ID);
         return Integer.valueOf(outputId);
     }
+
+    public void refresh(OutputPortDetails outputPortDetails) {
+        // if (statusMessage == null || !statusMessage.equals(outputPortDetails.getStatusMessage())) {
+        // statusMessage = outputPortDetails.getStatusMessage();
+        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.PORT_STATUS_MESSAGE_CHANNEL),
+                new StringType(outputPortDetails.getStatusMessage()));
+        // }
+
+        OnOffType power;
+        if (outputPortDetails.getSinkPowerStatus() == 1) {
+            power = OnOffType.ON;
+        } else {
+            power = OnOffType.OFF;
+        }
+
+        // if (this.power != power) {
+        updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.POWER_CHANNEL), power);
+        // this.power = power;
+        // }
+
+        updateStatusIfRequired(ThingStatus.ONLINE);
+    }
+
+    public void refresh(InputPortDetails inputPortDetails) {
+        int[] nodes = inputPortDetails.getTransmissionNodes();
+        int outputId = getOutputId();
+        for (int node : nodes) {
+            if (node == outputId) {
+                // if (this.source != inputPortDetails.getBay()) {
+                updateState(new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.SOURCE_CHANNEL),
+                        new DecimalType(inputPortDetails.getBay()));
+                updateStatusIfRequired(ThingStatus.ONLINE);
+                // this.source = inputPortDetails.getBay();
+                // }
+
+            }
+        }
+
+    }
+
+    @Override
+    Logger getLogger() {
+        return logger;
+    }
+
 }

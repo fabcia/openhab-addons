@@ -17,21 +17,32 @@ import org.openhab.binding.antiferencematrix.internal.model.PortList;
 public class AntiferenceMatrixDiscoveryService extends AbstractDiscoveryService
         implements AntiferenceMatrixDiscoveryListener {
 
-    AntiferenceMatrixBridgeHandler bridgeHandler;
+    private final AntiferenceMatrixBridgeHandler bridgeHandler;
+    private boolean backgroundDiscovery = false;
 
     public AntiferenceMatrixDiscoveryService(AntiferenceMatrixBridgeHandler bridgeHandler) {
         super(AntiferenceMatrixBindingConstants.SUPPORTED_THING_TYPES_UIDS, 10);
+        this.bridgeHandler = bridgeHandler;
     }
 
     @Override
     protected void startScan() {
         // This will set off an update and we will get called back in the listener method
-        bridgeHandler.smallUpdate();
+        if (bridgeHandler != null) {
+            if (!backgroundDiscovery) {
+                bridgeHandler.registerDiscoveryListener(this);
+            }
+            bridgeHandler.smallUpdate();
+            if (!backgroundDiscovery) {
+                bridgeHandler.unregisterDiscoveryListener();
+            }
+        }
     }
 
     @Override
     protected void startBackgroundDiscovery() {
         super.startBackgroundDiscovery();
+        backgroundDiscovery = true;
         // For background discovery we just register with the matrix and we will get
         // notified any time an update is done by the matrix
         bridgeHandler.registerDiscoveryListener(this);
@@ -41,6 +52,7 @@ public class AntiferenceMatrixDiscoveryService extends AbstractDiscoveryService
     protected void stopBackgroundDiscovery() {
         super.stopBackgroundDiscovery();
         bridgeHandler.unregisterDiscoveryListener();
+        backgroundDiscovery = false;
     }
 
     @Override
