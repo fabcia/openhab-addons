@@ -17,6 +17,7 @@ import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
+import org.eclipse.smarthome.core.types.RefreshType;
 import org.openhab.binding.lightwave.internal.api.LightwaveApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,9 @@ public class LightwaveBridgeHandler extends BaseThingHandler {
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
+        if (command instanceof RefreshType) {
+            doRefresh();
+        }
         if (channelUID.getId().equals(CHANNEL_1)) {
             // TODO: handle command
 
@@ -47,6 +51,10 @@ public class LightwaveBridgeHandler extends BaseThingHandler {
             // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
             // "Could not control device at IP address x.x.x.x");
         }
+    }
+
+    private void doRefresh() {
+
     }
 
     @Override
