@@ -4,7 +4,8 @@ import org.eclipse.smarthome.config.discovery.AbstractDiscoveryService;
 import org.openhab.binding.antiferencematrix.AntiferenceMatrixBindingConstants;
 import org.openhab.binding.antiferencematrix.handler.AntiferenceMatrixBridgeHandler;
 
-public class AntiferenceMatrixDiscoveryService extends AbstractDiscoveryService {
+public class AntiferenceMatrixDiscoveryService extends AbstractDiscoveryService
+        implements AntiferenceMatrixDiscoveryListener {
 
     AntiferenceMatrixBridgeHandler bridgeHandler;
 
@@ -19,18 +20,20 @@ public class AntiferenceMatrixDiscoveryService extends AbstractDiscoveryService 
 
     @Override
     protected void startBackgroundDiscovery() {
-        // TODO Auto-generated method stub
         super.startBackgroundDiscovery();
+        bridgeHandler.registerDiscoveryListener(this);
     }
 
     @Override
     protected void stopBackgroundDiscovery() {
-        // TODO Auto-generated method stub
         super.stopBackgroundDiscovery();
+        bridgeHandler.unregisterDiscoveryListener();
     }
 
-    private void doDiscovery() {
-        bridgeHandler.updatePortStatus();
+    @Override
+    public void update() {
+        // TODO Auto-generated method stub
+
     }
 
 }
