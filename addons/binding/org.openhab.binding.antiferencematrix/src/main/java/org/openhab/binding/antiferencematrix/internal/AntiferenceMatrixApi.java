@@ -29,12 +29,13 @@ public class AntiferenceMatrixApi {
 
     private Logger logger = LoggerFactory.getLogger(AntiferenceMatrixApi.class);
 
-    // TODO make configuration
-    private static final String URL = "http://matrix.fantasticfox.com";
+    private final String url;
 
     private static final String POWER_FUNCTION_TEMPLATE = "%s/CEC/%s/Output/%s";
     private static final String ON_STRING = "On";
     private static final String OFF_STRING = "Off";
+
+    private static final String URL_TEMPLATE = "http://%s";
 
     private static final String SOURCE_FUNCTION_TEMPLATE = "%s/Module/Set/%s/%s";
 
@@ -46,8 +47,8 @@ public class AntiferenceMatrixApi {
     private static final String INPUT_STRING = "Input";
     private static final String OUTPUT_STRING = "Output";
 
-    private static final String SYSTEM_DETAILS_URL = String.format(SYSTEM_DETAILS_TEMPLATE, URL);
-    private static final String PORT_LIST_URL = String.format(PORT_LIST_TEMPLATE, URL);
+    private final String systemDetailsUrl;
+    private final String portListUrl;
 
     private final HttpClient httpClient;
     private final Gson gson;
@@ -60,10 +61,13 @@ public class AntiferenceMatrixApi {
      * You must call start() before using the api.
      *
      */
-    public AntiferenceMatrixApi() {
+    public AntiferenceMatrixApi(String hostname) {
         httpClient = new HttpClient();
         gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.UPPER_CAMEL_CASE)
                 .registerTypeAdapter(Port.class, new PortDeserializer()).create();
+        this.url = String.format(URL_TEMPLATE, hostname);
+        this.systemDetailsUrl = String.format(SYSTEM_DETAILS_TEMPLATE, url);
+        this.portListUrl = String.format(PORT_LIST_TEMPLATE, url);
     }
 
     /**
@@ -129,7 +133,7 @@ public class AntiferenceMatrixApi {
      * @return The SystemDetails of the matrix
      */
     public SystemDetails getSystemDetails() {
-        String jsonResponse = callUrl(SYSTEM_DETAILS_URL);
+        String jsonResponse = callUrl(systemDetailsUrl);
         SystemDetails systemDetails = gson.fromJson(jsonResponse, SystemDetails.class);
         if (!systemDetails.getResult()) {
             logger.error("Error calling getSystemDetails(), error: {}", systemDetails.getErrorMessage());
@@ -143,7 +147,7 @@ public class AntiferenceMatrixApi {
      * @return The Port List
      */
     public PortList getPortList() {
-        String jsonResponse = callUrl(PORT_LIST_URL);
+        String jsonResponse = callUrl(portListUrl);
         PortList portList = gson.fromJson(jsonResponse, PortList.class);
         if (!portList.getResult()) {
             logger.error("Error calling getPortList(), error: {}", portList.getErrorMessage());
@@ -199,7 +203,9 @@ public class AntiferenceMatrixApi {
 
         ContentResponse response;
         try {
+            logger.debug("Calling URL: {}", url);
             response = httpClient.GET(url);
+            logger.debug("Response: {}", response);
             return response.getContentAsString();
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
@@ -221,19 +227,19 @@ public class AntiferenceMatrixApi {
         } else {
             onOrOff = OFF_STRING;
         }
-        return String.format(POWER_FUNCTION_TEMPLATE, URL, onOrOff, outputId);
+        return String.format(POWER_FUNCTION_TEMPLATE, url, onOrOff, outputId);
     }
 
     private String getSourceFunction(int sourceId, int outputId) {
-        return String.format(SOURCE_FUNCTION_TEMPLATE, URL, sourceId, outputId);
+        return String.format(SOURCE_FUNCTION_TEMPLATE, url, sourceId, outputId);
     }
 
     private String getInputPortDetailsFunction(int inputId) {
-        return String.format(PORT_DETAILS_TEMPLATE, URL, INPUT_STRING, inputId);
+        return String.format(PORT_DETAILS_TEMPLATE, url, INPUT_STRING, inputId);
     }
 
     private String getOutputPortDetailsFunction(int outputId) {
-        return String.format(PORT_DETAILS_TEMPLATE, URL, OUTPUT_STRING, outputId);
+        return String.format(PORT_DETAILS_TEMPLATE, url, OUTPUT_STRING, outputId);
     }
 
 }

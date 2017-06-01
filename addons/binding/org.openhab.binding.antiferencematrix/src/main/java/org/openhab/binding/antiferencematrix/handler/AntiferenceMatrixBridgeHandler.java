@@ -7,11 +7,13 @@
  */
 package org.openhab.binding.antiferencematrix.handler;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.smarthome.config.core.Configuration;
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.eclipse.smarthome.core.library.types.OnOffType;
 import org.eclipse.smarthome.core.library.types.StringType;
@@ -38,44 +40,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
-    // TODO put in config
-    private static final int REFRESH_INTERVAL = 10;
 
     private final Logger logger = LoggerFactory.getLogger(AntiferenceMatrixBridgeHandler.class);
-    private final AntiferenceMatrixApi api;
+    private AntiferenceMatrixApi api = null;
+    private int refreshIntervalInSeconds = 60;
 
     private AntiferenceMatrixDiscoveryListener listener = null;
     protected ScheduledFuture<?> refreshTask;
 
     public AntiferenceMatrixBridgeHandler(Bridge bridge) {
         super(bridge);
-        api = new AntiferenceMatrixApi();
+    }
+
+    @Override
+    protected void updateConfiguration(Configuration configuration) {
+        // TODO Auto-generated method stub
+        super.updateConfiguration(configuration);
     }
 
     @Override
     public void initialize() {
         logger.info("Initalizing matrix: {}", getThing().getLabel());
         try {
+            Configuration configuration = getThing().getConfiguration();
+            String hostname = (String) configuration.get("address");
+            BigDecimal refreshInterval = (BigDecimal) configuration.get("pollingInterval");
+            this.refreshIntervalInSeconds = refreshInterval.intValue();
+            logger.debug("Antiference Matrix Hostname {}", hostname);
+            logger.debug("Antiference Matrix Refresh Interval {}", refreshIntervalInSeconds);
+            api = new AntiferenceMatrixApi(hostname);
             api.start();
-            scheduler.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        fullUpdate();
-                        startRefreshTask();
-                    } catch (Exception e) {
-                        logger.error("Error whilst initalizing", e);
-                    }
-
-                }
-            }, 0, TimeUnit.SECONDS);
-
+            matrixStatusUpdate();
+            startRefreshTask();
         } catch (Exception e) {
             logger.error("Error starting Matrix API", e);
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                     "Error connecting to API: " + e.getMessage());
         }
-        updateStatus(ThingStatus.ONLINE);
         logger.info("Finished initalizing matrix: {}", getThing().getLabel());
     }
 
@@ -91,7 +92,7 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
                     logger.error("Error whilst refreshing", e);
                 }
             }
-        }, 0, REFRESH_INTERVAL, TimeUnit.SECONDS);
+        }, 0, refreshIntervalInSeconds, TimeUnit.SECONDS);
     }
 
     private void disposeRefreshTask() {
@@ -128,10 +129,17 @@ public class AntiferenceMatrixBridgeHandler extends BaseBridgeHandler {
 
     public void matrixStatusUpdate() {
         SystemDetails systemDetails = api.getSystemDetails();
-        updateState(
-                new ChannelUID(getThing().getUID(), AntiferenceMatrixBindingConstants.MATRIX_STATUS_MESSAGE_CHANNEL),
-                new StringType(systemDetails.getStatusMessage()));
-
+        if (!systemDetails.getResult()) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR);
+        } else {
+            updateState(
+                    new ChannelUID(getThing().getUID(),
+                            AntiferenceMatrixBindingConstants.MATRIX_STATUS_MESSAGE_CHANNEL),
+                    new StringType(systemDetails.getStatusMessage()));
+            if (!ThingStatus.ONLINE.equals(getThing().getStatus())) {
+                updateStatus(ThingStatus.ONLINE);
+            }
+        }
     }
 
     public void portStatusUpdate() {
