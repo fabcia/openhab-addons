@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="lightwave"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+    <!-- Lightwave Bridge -->
+    <bridge-type id="bridge">
+        <label>Lightwave Bridge</label>
+        <description>
+            The Lightwave Bridge
+        </description>
+
+        <config-description>
+            <parameter name="hostname" type="text" required="true">
+                <label>Hostname or IP</label>
+                <description>The hostname or IP of your lightwave bridge</description>
+                <default></default>
+            </parameter>
+
+            <parameter name="listenPort" type="integer" required="true">
+                <label>Receiving Port</label>
+                <description>Port to listen for updates</description>
+                <default>9761</default>
+            </parameter>            
+            
+            <parameter name="sendPort" type="integer" required="true">
+                <label>Sending port</label>
+                <description>Port to send messages on</description>
+                <default>9760</default>
+            </parameter>            
+        </config-description>
+    </bridge-type>
+
+</thing:thing-descriptions>

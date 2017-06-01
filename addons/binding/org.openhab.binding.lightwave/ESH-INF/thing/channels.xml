@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="lightwave"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+    <!-- Sample Channel Type -->
+    <channel-type id="sample-channel">
+        <item-type>lightwaveItem</item-type>
+        <label>Lightwave Binding Channel</label>
+        <description>Sample channel for Lightwave Binding</description>
+    </channel-type>
+
+</thing:thing-descriptions>
